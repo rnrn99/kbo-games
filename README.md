@@ -142,6 +142,27 @@ CREATE INDEX idx_games_home_team ON games(home_team_id);
 CREATE INDEX idx_games_away_team ON games(away_team_id);
 ```
 
+## 자동화 (GitHub Actions)
+
+매일 **23:00 KST**에 `python main.py --today`를 자동으로 실행합니다.
+
+워크플로우 파일: `.github/workflows/daily-crawl.yml`
+
+### Secrets 설정
+
+GitHub 레포 **Settings → Secrets and variables → Actions → Repository secrets**에 아래 두 값을 등록합니다.
+
+| Secret 이름 | 값 |
+|---|---|
+| `SUPABASE_URL` | Supabase 프로젝트 URL |
+| `SUPABASE_API_SECRET_KEY` | Supabase Secret 키 |
+
+### 수동 실행
+
+GitHub **Actions 탭 → KBO Daily Crawl → Run workflow**에서 언제든 수동으로 실행할 수 있습니다.
+
+---
+
 ## 라이선스
 
 MIT
