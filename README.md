@@ -144,7 +144,7 @@ CREATE INDEX idx_games_away_team ON games(away_team_id);
 
 ## 자동화 (GitHub Actions)
 
-매일 **23:00 KST**에 `python main.py --today`를 자동으로 실행합니다.
+매일 **22:53 KST**에 `python main.py --today`를 자동으로 실행합니다.
 
 워크플로우 파일: `.github/workflows/daily-crawl.yml`
 
