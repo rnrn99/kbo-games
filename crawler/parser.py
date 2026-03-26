@@ -240,7 +240,7 @@ def parse_games(raw_data: dict, game_type: str, season: int) -> list[dict]:
         except Exception as e:
             logger.warning("행 %d 파싱 오류: %s", i, e)
 
-    logger.info("파싱 완료: %d / %d 행 성공", len(results), len(rows))
+    logger.debug("파싱 완료: %d / %d 행 성공", len(results), len(rows))
     return results
 
 
