@@ -40,7 +40,7 @@ def load_team_map(client: Client) -> dict[str, int]:
         raise RuntimeError("teams 테이블이 비어 있습니다. 먼저 시드 데이터를 삽입하세요.")
 
     _team_id_cache = {row["game_id_code"]: row["id"] for row in rows}
-    logger.info("팀 맵 로드 완료: %s", _team_id_cache)
+    logger.debug("팀 맵 로드 완료: %s", _team_id_cache)
     return _team_id_cache
 
 

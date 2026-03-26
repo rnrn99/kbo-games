@@ -32,7 +32,7 @@ def create_session() -> requests.Session:
     session.headers.update(HEADERS)
 
     try:
-        logger.info("KBO 메인 페이지 방문 중 (세션 쿠키 획득)...")
+        logger.debug("KBO 메인 페이지 방문 중 (세션 쿠키 획득)...")
         resp = session.get(
             "https://www.koreabaseball.com/Schedule/Schedule.aspx",
             timeout=15,
@@ -77,7 +77,7 @@ def fetch_schedule(
 
     for attempt in range(1, retry + 1):
         try:
-            logger.info("[%s] 요청 중... (시도 %d/%d)", label, attempt, retry)
+            logger.debug("[%s] 요청 중... (시도 %d/%d)", label, attempt, retry)
             resp = session.post(KBO_SCHEDULE_URL, data=payload, timeout=20)
             resp.raise_for_status()
 

@@ -53,9 +53,9 @@ KBO API는 HTML 테이블을 JSON으로 변환한 형태로 응답합니다. 각
 - `parse_games()`: API 응답 rows → DB 레코드 리스트 변환
   - 날짜: `Class="day"` 셀에서 추출, `RowSpan`으로 여러 행에 걸쳐 공유됨
   - 팀/점수: `Class="play"` 셀 HTML을 BeautifulSoup으로 파싱 (`win` / `lose` / `same` 클래스)
-  - game_id: `Class="relay"` 셀 URL에서 추출 (`YYYYMMDD{away}{home}{dh}` 형식)
-  - 팀 코드: game_id에서 직접 추출 (away 2자 + home 2자)
-  - 경기 상태: "경기종료", "우천취소" 등 한국어 → `completed` / `canceled` / `scheduled`
+  - game_id: `Class="relay"` 셀 URL에서 추출 (`YYYYMMDD{away}{home}{dh}` 형식). relay가 없는 취소 경기는 play 셀 팀명을 `TEAM_NAME_TO_CODE` 매핑으로 변환해 직접 구성
+  - 팀 코드: relay 있는 경우 game_id에서 추출, 없는 경우 팀명 → 코드 매핑에서 도출
+  - 경기 상태: relay 없는 경기는 마지막 셀 값으로 취소 감지 (예: "우천취소", "기타") → `canceled`. relay 있는 경기는 play 셀 점수 유무로 `completed` / `scheduled` 판별
   - 결과: 홈팀 기준 `win` / `lose` / `draw`
   - 더블헤더: `0`(단일) / `1`(1차전) / `2`(2차전)
 - `merge_games()`: 정규 + 포스트 데이터가 겹칠 때 병합 (`game_id` 중복 시 포스트시즌 우선)

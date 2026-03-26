@@ -18,16 +18,18 @@ _GAME_ID_URL_RE = re.compile(r"gameId=([^&'\"]+)")
 # 날짜 텍스트: '03.22(토)' → month, day
 _DATE_RE = re.compile(r"^(\d{1,2})\.(\d{1,2})")
 
-# 경기 상태 키워드 → 내부 값
-STATUS_MAP = {
-    "경기종료": "completed",
-    "게임종료": "completed",
-    "콜드게임": "completed",
-    "우천취소": "canceled",
-    "경기취소": "canceled",
-    "노게임":   "canceled",
-    "취소":     "canceled",
-    "연기":     "canceled",
+# 팀명(play 셀 span 텍스트) → game_id 코드
+TEAM_NAME_TO_CODE: dict[str, str] = {
+    "KIA":  "HT",
+    "LG":   "LG",
+    "KT":   "KT",
+    "SSG":  "SK",
+    "두산": "OB",
+    "롯데": "LT",
+    "삼성": "SS",
+    "한화": "HH",
+    "NC":   "NC",
+    "키움": "WO",
 }
 
 
@@ -39,6 +41,20 @@ def _extract_game_id(text: Optional[str]) -> Optional[str]:
         return None
     m = _GAME_ID_URL_RE.search(text)
     return m.group(1) if m else None
+
+
+def _extract_team_names_from_play(html: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+    """play 셀 HTML에서 (away_name, home_name)을 추출한다.
+
+    구조: <span>팀A</span><em>...</em><span>팀B</span>
+    """
+    if not html:
+        return None, None
+    soup = BeautifulSoup(html, "html.parser")
+    top_spans = [tag for tag in soup.children if getattr(tag, "name", None) == "span"]
+    if len(top_spans) >= 2:
+        return top_spans[0].get_text(strip=True), top_spans[-1].get_text(strip=True)
+    return None, None
 
 
 def _parse_date_text(text: str, season: int) -> Optional[date]:
@@ -61,8 +77,7 @@ def _parse_play_cell(
     HTML 예시:
         완료: <span>팀A</span><em><span class="lose">2</span><span>vs</span>
                 <span class="win">5</span></em><span>팀B</span>
-        취소: <span>팀A</span><em>우천취소</em><span>팀B</span>
-        예정: <span>팀A</span><em><span>vs</span></em><span>팀B</span>
+        예정/취소: <span>팀A</span><em><span>vs</span></em><span>팀B</span>
     """
     if not html:
         return None, None, "scheduled", None
@@ -71,14 +86,6 @@ def _parse_play_cell(
     em = soup.find("em")
     if not em:
         return None, None, "scheduled", None
-
-    em_text = em.get_text(strip=True)
-
-    # 취소/연기 확인 (STATUS_MAP 순서 중요: 더 긴 키워드 먼저)
-    for keyword, status_val in STATUS_MAP.items():
-        if keyword in em_text:
-            cancel_reason = keyword if status_val == "canceled" else None
-            return None, None, status_val, cancel_reason
 
     # 점수 추출: em 안의 win/lose/same 클래스 span (same = 무승부)
     score_spans = em.find_all("span", class_=lambda c: c in ("win", "lose", "same"))
@@ -123,20 +130,40 @@ def _parse_row(
     if not play_cell:
         return None
 
-    game_id = _extract_game_id(relay_cell["Text"] if relay_cell else None)
-    if not game_id:
-        return None
+    relay_text = relay_cell["Text"] if relay_cell else None
+    game_id = _extract_game_id(relay_text)
+    from_relay = game_id is not None
 
-    m = _GAME_ID_RE.match(game_id)
-    if not m:
-        logger.warning("game_id 형식 불일치: %s", game_id)
-        return None
-
-    away_code = m.group(2)
-    home_code = m.group(3)
-    dh_flag = int(m.group(4))
+    if from_relay:
+        m = _GAME_ID_RE.match(game_id)
+        if not m:
+            logger.warning("game_id 형식 불일치: %s", game_id)
+            return None
+        away_code = m.group(2)
+        home_code = m.group(3)
+        dh_flag = int(m.group(4))
+    else:
+        # relay 없음 → 팀명으로 코드 도출
+        away_name, home_name = _extract_team_names_from_play(play_cell["Text"])
+        if not away_name or not home_name:
+            return None
+        away_code = TEAM_NAME_TO_CODE.get(away_name)
+        home_code = TEAM_NAME_TO_CODE.get(home_name)
+        if not away_code or not home_code:
+            logger.warning("알 수 없는 팀명: away=%s home=%s", away_name, home_name)
+            return None
+        dh_flag = 0
+        game_id = f"{current_date.strftime('%Y%m%d')}{away_code}{home_code}{dh_flag}"
 
     away_score, home_score, status, cancel_reason = _parse_play_cell(play_cell["Text"])
+
+    # relay 없을 때 마지막 셀로 취소 감지
+    if not from_relay:
+        last_text = cells[-1].get("Text", "").strip() if cells else ""
+        if last_text and last_text != "-":
+            status = "canceled"
+            cancel_reason = last_text
+
     result_home = _resolve_result(home_score, away_score, status)
 
     # 경기장: 항상 마지막에서 두 번째 셀
@@ -213,7 +240,7 @@ def parse_games(raw_data: dict, game_type: str, season: int) -> list[dict]:
         except Exception as e:
             logger.warning("행 %d 파싱 오류: %s", i, e)
 
-    logger.info("파싱 완료: %d / %d 행 성공", len(results), len(rows))
+    logger.debug("파싱 완료: %d / %d 행 성공", len(results), len(rows))
     return results
 
 
