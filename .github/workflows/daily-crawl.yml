@@ -2,7 +2,9 @@ name: KBO Daily Crawl
 
 on:
   schedule:
-    - cron: "53 13 * * *" # 매일 22:53 KST
+    - cron: "33 13 * * 2-5" # 화~금 22:33 KST
+    - cron: "33 12 * * 6"   # 토 21:33 KST
+    - cron: "33 9 * * 0"    # 일 18:33 KST
   workflow_dispatch:
 
 jobs:
